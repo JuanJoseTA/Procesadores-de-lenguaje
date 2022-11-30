@@ -1,0 +1,198 @@
+import java_cup.runtime.*;
+import java.util.ArrayList;
+
+/* terminales */
+terminal Double NUMERO;
+terminal String IDENT;
+terminal MAS, MENOS, POR, DIV;
+terminal ASIG;
+terminal ALL, CLL;
+terminal AP, CP;
+terminal AC, CC;
+terminal COMA, PYC;
+terminal INVERSA, TRANSPUESTA, ADJUNTA;
+terminal PRINT;
+
+/* no terminales*/
+
+non terminal listaLinea;
+non terminal linea;
+non terminal ArrayList<ArrayList<Double>> exp;
+non terminal ArrayList<ArrayList<Double>> matriz;
+non terminal ArrayList<ArrayList<Double>> array;
+non terminal ArrayList<Double> arrayLine;
+non terminal ArrayList<ArrayList<Double>> arrayJava;
+/*non terminal ArrayList<Double> arrayLineJava;*/
+non terminal ArrayList<ArrayList<Double>> func;
+
+/* Precedencias */
+precedence right ASIG;
+precedence left MAS;
+precedence left POR;
+precedence nonassoc COMA;
+
+
+/*  GRAMATICA   */
+
+start with listaLinea;
+
+listaLinea ::= listaLinea linea PYC {::}
+              |linea  PYC           {::}
+              ;
+
+linea ::= exp:e                 {::}
+        | PRINT AP exp:e CP     {:
+                                       
+                                        if(e != null){
+                                                if(e.size() > 0){
+                                                        double[][] x = Matrices.toArray(e);
+                                                        if(Matrices.columnas(x) > 0){
+                                                        Matrices.print(x);
+                                                        }
+                                                }
+                                        }
+                                :}
+        ;
+
+exp ::= IDENT:e ASIG exp:v {: TablaSimbolos.insertar(e, Matrices.toArray(v)); :}
+        | IDENT:e          {:
+                                double[][] x = TablaSimbolos.buscar(e);
+                                if(x == null){
+                                        System.out.println(TablaSimbolos.ERROR_NOEXISTE);
+                                        x = new double[0][0];
+                                }
+                                RESULT = Matrices.toArrayList(x);
+                           :}
+        | exp:e POR exp:v {:
+                                double[][] x = Matrices.toArray(e);
+                                double[][] y = Matrices.toArray(v);
+
+                                double[][] resultado;
+
+                                if(Matrices.columnas(x) == Matrices.filas(y) &&
+                                   Matrices.columnas(x)>0 && Matrices.columnas(y)>0){
+                                        resultado = Matrices.producto(x, y);
+                                        RESULT = Matrices.toArrayList(resultado);
+                                }else{
+                                        System.out.println(Matrices.ERROR_PROD);
+                                        RESULT = new ArrayList();
+                                }
+
+                               
+                          :}
+        | exp:e MAS exp:v {:  
+                                double[][] x = Matrices.toArray(e);
+                                double[][] y = Matrices.toArray(v);
+
+                                double[][] resultado;
+
+                                if(Matrices.columnas(x) == Matrices.columnas(y) &&
+                                   Matrices.filas(x) == Matrices.filas(y) &&
+                                   Matrices.columnas(x) > 0 && Matrices.columnas(y) > 0){
+                                        resultado = Matrices.suma(x,y);
+                                        RESULT = Matrices.toArrayList(resultado);
+                                }else{
+                                        RESULT =  new ArrayList();
+                                }
+                          :}
+        | func:e {: RESULT = e; :}
+        | AP exp:e CP {: RESULT = e; :}
+        | matriz:e {:
+                        try{
+                                double[][] x = Matrices.toArray(e);
+
+                                if((Matrices.filas(x) >= 1) && (Matrices.columnas(x) >= 1)){
+                                        RESULT = e;                                
+                                }else{
+                                        System.out.println("Syntax error: Matriz de dimensiones no válidas");
+                                        RESULT = new ArrayList();
+                                }
+
+                        }catch(IndexOutOfBoundsException ex){
+                                System.out.println(Matrices.ERROR_FILAS);
+                               
+                                RESULT = new ArrayList();
+                        }
+                  :}
+        ;
+
+matriz ::= AC array:e CC    {:
+                                RESULT = e;
+                            :}
+          | ALL arrayJava:e CLL {:  RESULT = e; :}
+          ;
+
+array ::= arrayLine:e {:
+                        ArrayList<ArrayList<Double>> x = new ArrayList();
+                        x.add(e);
+                       
+                        RESULT = x;
+                      :}
+        | arrayLine:e PYC array:v {:
+                                        ArrayList<ArrayList<Double>> x = new ArrayList();
+                                        x.add(e);
+                                        if(v != null){
+                                                x.addAll(v);
+                                        }
+                                        RESULT = x;
+                                 :}
+        ;
+
+arrayLine ::= NUMERO:e {:
+                                ArrayList<Double> x = new ArrayList();
+                                x.add(e);
+                                RESULT = x;
+                       :}
+                | NUMERO:e COMA arrayLine:v {:
+                                                ArrayList<Double> x = new ArrayList();
+                                                x.add(e);
+                                                x.addAll(v);
+                                                RESULT = x;
+                                            :}
+                | {:
+                        ArrayList<Double> y = new ArrayList();
+                        RESULT = y;
+                  :}
+                ;
+
+arrayJava ::= ALL arrayLine:e CLL                      {:
+                                                        ArrayList<ArrayList<Double>> x = new ArrayList();
+                                                        x.add(e);
+                                                        RESULT = x;
+                                                       :}
+             | arrayJava:v  COMA  ALL arrayLine:e CLL  {:
+                                                                ArrayList<ArrayList<Double>> x = new ArrayList();
+                                                                x.addAll(v);
+                                                                x.add(e);
+                                                                RESULT = x;
+                                                           :}
+             ;
+
+func ::= TRANSPUESTA AP exp:e CP {:
+                                        double[][] x = Matrices.toArray(e);
+                                        double[][] resultado = Matrices.transpuesta(x);
+                                        RESULT =  Matrices.toArrayList(resultado);
+                                 :}
+        | INVERSA AP exp:e CP {:
+                                        double[][] x = Matrices.toArray(e);
+                                       
+                                        if(Matrices.filas(x) == Matrices.columnas(x)){
+                                                double[][] resultado = Matrices.inversa(x);
+                                                RESULT = Matrices.toArrayList(resultado);
+                                        }else{
+                                                System.out.println(Matrices.ERROR_INVERSA);
+                                                RESULT = null;
+                                        }
+                              :}
+        | ADJUNTA AP exp:e CP {:
+                                double[][] x = Matrices.toArray(e);
+
+                                if(Matrices.filas(x) == Matrices.columnas(x)){
+                                        double[][] resultado = Matrices.adjunta(x);
+                                        RESULT = Matrices.toArrayList(resultado);
+                                }else{
+                                    System.out.println(Matrices.ERROR_ADJUNTA);
+                                    RESULT = null;
+                                }
+                              :}
+	    ;

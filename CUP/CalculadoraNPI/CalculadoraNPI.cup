@@ -1,0 +1,49 @@
+import java_cup.runtime.*;
+import java.io.*;
+
+/* Terminals (tokens returned by the scanner). */
+terminal MAS, MENOS, POR, DIV;
+terminal AP, CP, EOL, UNS;
+terminal String NUMERO;
+
+
+/* Non terminals */
+non terminal String expr;
+non terminal lista, res;
+
+precedence left MAS, MENOS;
+precedence left POR, DIV;
+precedence nonassoc UNS;
+precedence nonassoc AP, CP;
+
+/* The grammar */
+
+lista ::= lista res | res;
+
+res ::= expr:e EOL{:
+					FileWriter fich = null;
+					PrintWriter pw = null;
+					try{
+						fich = new FileWriter("exp.out", true);
+						pw = new PrintWriter(fich);
+						pw.println(e);
+					}catch(Exception err){
+						err.printStackTrace();
+					}finally{
+						try{
+							if(null != fich) fich.close();
+						}catch(Exception err2){
+							err2.printStackTrace();
+						}
+					}
+					System.out.println(e);
+			   :}
+	 ;
+expr ::= expr:e MAS expr:t {: RESULT = e + t + "+ "; :}
+	   | expr:e MENOS expr:t {: RESULT = e + t + "- "; :}
+	   | expr:e POR expr:t {: RESULT = e + t + "* "; :}
+	   | expr:e DIV expr:t {: RESULT = e + t + "/ "; :}
+	   | MENOS expr:e {: RESULT = 0 + " " + e + "- "; :} %prec UNS
+	   | NUMERO:n {: RESULT = n + " "; :} 
+	   | AP expr:e CP {: RESULT = e + " "; :}
+	   ;

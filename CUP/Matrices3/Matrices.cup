@@ -1,0 +1,85 @@
+import java_cup.runtime.*;
+import java.util.ArrayList;
+
+/* terminales */
+terminal Double NUMERO;
+terminal String IDENT;
+terminal MAS, MENOS, POR, DIV, CONCATENA, INTERSECCION, SET;
+terminal ASIG;
+terminal ALL, CLL;
+terminal AP, CP;
+terminal AC, CC;
+terminal COMA, PYC;
+terminal INVERSA, TRANSPUESTA, ADJUNTA;
+terminal PRINT;
+terminal double [] CONJUNTO, VECTOR;
+terminal double[][] MATRIZ;
+
+non terminal linea, listaLinea;
+non terminal ArrayList<Double> arrayLine, exp;
+non terminal double[] vector, conjunto;
+non terminal Double numero;
+
+precedence left MAS;
+precedence left CONCATENA;
+precedence left INTERSECCION;
+precedence nonassoc AP, CP;
+precedence nonassoc SET;
+
+listaLinea ::= listaLinea linea PYC {::}
+              |linea  PYC           {::}
+              ;
+              
+linea ::= IDENT:i ASIG vector:v {: TablaSimbolos.insertarVector(i, v); :}
+		| IDENT:i ASIG conjunto:c {: TablaSimbolos.insertarConjunto(i, c); :}
+		| PRINT AP exp:e CP {: Matrices.print(e); :}
+		;
+		
+exp ::= vector:v {: RESULT = Matrices.toArrayList(v); :}
+	  | conjunto:c {: RESULT = Matrices.toArrayList(c); :}
+	  ;
+		
+vector ::= VECTOR:v {: RESULT = v; :}
+		 | ALL arrayLine:e CLL {: RESULT = Matrices.toVector(e); :}
+		 | vector:v1 CONCATENA vector:v2 {: RESULT = Matrices.concatena(v1, v2); :}
+		 | numero:n CONCATENA vector:v {: RESULT = Matrices.concatena(n, v); :}
+		 | vector:v CONCATENA numero:n {: RESULT = Matrices.concatena(v, n); :}
+		 | conjunto:n CONCATENA vector:v {: RESULT = Matrices.concatena(n, v); :}
+		 | vector:v CONCATENA conjunto:n {: RESULT = Matrices.concatena(v, n); :}
+		 | vector:v1 MAS vector:v2 {: RESULT = Matrices.suma(v1, v2); :}
+		 | AP vector:v CP {: RESULT = v; :} 
+		 ;
+
+conjunto ::= SET vector:v {: RESULT = Matrices.toSet(v); :}
+		   | SET conjunto:c {: RESULT = c; :}
+		   | CONJUNTO:c {: RESULT = c; :}
+		   | conjunto:n CONCATENA conjunto:v {: RESULT = Matrices.union(n, v); :}
+		   | conjunto:n CONCATENA numero:n1 {: RESULT = Matrices.union(n, n1); :}
+		   | numero:n CONCATENA conjunto:n1 {: RESULT = Matrices.union(n, n1); :}
+		   | conjunto:n INTERSECCION conjunto:v {: RESULT = Matrices.interseccion(n, v); :}
+		   | conjunto:n INTERSECCION vector:v {: RESULT = Matrices.interseccion(n, Matrices.toSet(v)); :}
+		   | vector:n INTERSECCION conjunto:v {: RESULT = Matrices.interseccion(Matrices.toSet(n), v); :}
+		   | vector:n INTERSECCION vector:v {: RESULT = Matrices.interseccion(Matrices.toSet(n), Matrices.toSet(v)); :}
+		   | AP conjunto:v CP {: RESULT = v; :} 
+		   ;
+
+arrayLine ::= numero:e {:
+                                ArrayList<Double> x = new ArrayList();
+                                x.add(e);
+                                RESULT = x;
+                       :}
+            | numero:e COMA arrayLine:v {:
+                                                ArrayList<Double> x = new ArrayList();
+                                                x.add(e);
+                                                x.addAll(v);
+                                                RESULT = x;
+                                        :}
+			| {:
+                   ArrayList<Double> y = new ArrayList();
+                   RESULT = y;
+              :}
+            ;
+      
+numero ::= NUMERO:n {: RESULT = n; :}
+		 | MENOS NUMERO:n {: RESULT = n*-1.0; :}
+		 ;

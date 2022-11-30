@@ -1,0 +1,114 @@
+import java_cup.runtime.*;
+import java.util.ArrayList;
+
+/* terminales */
+terminal Double NUMERO; 
+terminal String IDENT;
+terminal MAS, MENOS, POR, DIV;
+terminal ASIG;
+terminal ALL, CLL;
+terminal AP, CP;
+terminal AC, CC;
+terminal COMA, PYC;
+terminal INVERSA, TRANSPUESTA, ADJUNTA;
+terminal PRINT;
+terminal double[][] MATRIZ;
+terminal double[] VECTOR;
+terminal CONCATENA;
+
+non terminal linea, lineas;
+non terminal Double numero;
+non terminal double[][] matriz;
+non terminal double[] vector;
+non terminal ArrayList<Double> arrayLine;
+non terminal ArrayList<ArrayList<Double>> arrayJava;
+
+precedence left MAS;
+precedence left POR;
+precedence left CONCATENA;
+
+lineas ::= lineas linea PYC
+		 | linea PYC
+		 ;
+
+linea ::= IDENT:i ASIG matriz:m {: TablaSimbolos.insertar(i, m); :}
+		| IDENT:i ASIG vector:v {: TablaSimbolos.insertarVector(i, v); :}
+		| PRINT AP matriz:m CP {: Matrices.print(m); :}
+		| PRINT AP vector:v CP {: Matrices.print(v); :}
+		| IDENT:i AP numero:n1 COMA numero:n2 CP ASIG matriz:m {: 
+																	double[][] x = Matrices.completar(m, n1.intValue(), n2.intValue());
+																	TablaSimbolos.insertar(i, x);
+																:}
+		;
+		
+matriz ::= MATRIZ:m {: RESULT = m; :}
+		 | ALL arrayJava:e CLL {:  RESULT = Matrices.toArray(e); :}
+		 | matriz:m CONCATENA vector:v {: RESULT = Matrices.concatena(m, v); :}
+		 | matriz:v1 MAS matriz:v2 {: if(Matrices.filas(v1) == Matrices.filas(v2) && Matrices.columnas(v1) == Matrices.columnas(v2)){
+										RESULT = Matrices.suma(v1,v2); 
+									  } else System.err.println(Matrices.ERROR_SUMA);
+								   :}
+		 | matriz:v1 POR matriz:v2 {: if(Matrices.columnas(v1) == Matrices.filas(v2)){
+										RESULT = Matrices.producto(v1,v2); 
+									  } else System.err.println(Matrices.ERROR_PROD);
+								   :}
+		 | vector:v1 POR matriz:v2 {: if(Matrices.dim(v1) == Matrices.filas(v2)){
+										RESULT = Matrices.producto(v1,v2); 
+									  } else System.err.println(Matrices.ERROR_PROD);
+								   :}
+		 | matriz:v1 POR vector:v2 {: if(Matrices.dim(v2) == Matrices.columnas(v1)){
+										RESULT = Matrices.producto(v1,v2); 
+									  } else System.err.println(Matrices.ERROR_PROD);
+								   :}
+		 | vector:v1 POR vector:v2 {: RESULT = Matrices.producto(v1,v2); :}
+		 | MATRIZ:x AP numero:n1 COMA numero:n2 CP {:
+													if(Matrices.filas(x) < n1.intValue()) System.err.println(Matrices.ERROR_FILAS_INSUF);
+													else if(Matrices.columnas(x) < n2.intValue()) System.err.println(Matrices.ERROR_COLUM_INSUF);
+													else RESULT = Matrices.subMatriz(x, n1.intValue(), n2.intValue());
+												  :}
+		 ;
+		
+vector ::= VECTOR:v {: RESULT = v; :}
+		 | ALL arrayLine:e CLL {: RESULT = Matrices.toVector(e); :}
+		 | vector:v1 CONCATENA vector:v2 {: RESULT = Matrices.concatena(v1,v2); :}
+		 | numero:n CONCATENA vector:v {: RESULT = Matrices.concatena(n, v); :}
+		 | vector:v CONCATENA numero:n {: RESULT = Matrices.concatena(v, n); :}
+		 | vector:v1 MAS vector:v2 {: if(Matrices.dim(v1) == Matrices.dim(v2)){
+										RESULT = Matrices.suma(v1,v2); 
+									  } else System.err.println(Matrices.ERROR_SUMA);
+								   :}
+		 ;
+		 
+arrayJava ::= arrayJava:a COMA vector:v {:
+											ArrayList<ArrayList<Double>> x = new ArrayList();
+											x.addAll(a);
+											x.add(Matrices.toArrayList(v));
+											RESULT = x;
+										:}
+			| vector:v  {:
+							ArrayList<ArrayList<Double>> x = new ArrayList();
+							x.add(Matrices.toArrayList(v));
+							RESULT = x;
+						:}
+			;
+		 
+arrayLine ::= numero:e {:
+                          ArrayList<Double> x = new ArrayList();
+                          x.add(e);
+                          RESULT = x;
+                       :}
+            | numero:e COMA arrayLine:v {:
+                                           ArrayList<Double> x = new ArrayList();
+                                           x.add(e);
+                                           x.addAll(v);
+                                           RESULT = x;
+                                        :}
+			| {:
+                 ArrayList<Double> y = new ArrayList();
+                 RESULT = y;
+              :}
+            ;
+      
+numero ::= NUMERO:n {: RESULT = n; :}
+		 | MENOS NUMERO:n {: RESULT = n*-1.0; :}
+		 ;

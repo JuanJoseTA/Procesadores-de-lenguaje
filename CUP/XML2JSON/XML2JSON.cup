@@ -1,0 +1,48 @@
+import java_cup.runtime.*;
+
+action code {: private boolean lista = false; :}
+
+terminal String OPEN_TAG, CLOSE_TAG, TEXT;
+
+non terminal res;
+non terminal String xml, xmlLista, xmlValor;
+
+
+res ::= xmlLista:e {: System.out.print("{\n" + e + "\n}"); :};
+
+xmlLista::= xml:x xmlLista:l {: RESULT = x + ",\n" + l; :}
+		  | xml:x {: RESULT = x; :}
+		  ;
+
+xml ::= OPEN_TAG:o {:
+					if(o.charAt(o.length()-1) == 's') {RESULT = o.substring(0, o.length()-1) + ": [\n"; lista = true;}
+					else {
+						if(!lista)RESULT = o.substring(0, o.length()) + ": {\n"; 
+						else RESULT = "{\n";
+						lista = false;
+					}
+				 :}
+		xmlLista:x {: RESULT += x; :}
+		CLOSE_TAG {: if(o.charAt(o.length()-1) == 's') {RESULT += "\n]"; lista = false;} 
+					 else {RESULT += "\n}"; lista = true; };
+				  :}
+	  | OPEN_TAG:o
+		xmlValor:x {: if(!lista) RESULT = o + ":" + x;
+					  else RESULT = x; 
+				   :}
+		CLOSE_TAG
+	  | OPEN_TAG:o {:
+					if(o.charAt(o.length()-1) == 's') {RESULT = o.substring(0, o.length()-1) + ": ["; lista = true;}
+					else {
+						if(!lista)RESULT = o.substring(0, o.length()) + ": {"; 
+						else RESULT = "{";
+						lista = false;
+					}
+				 :}
+		CLOSE_TAG {: if(o.charAt(o.length()-1) == 's') {RESULT += "]"; lista = false;} 
+					 else {RESULT += "}"; lista = true; };
+				  :}
+	  ;
+
+xmlValor ::= TEXT:t {: RESULT = t; :};
+

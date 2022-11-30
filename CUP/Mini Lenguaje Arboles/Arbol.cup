@@ -1,0 +1,49 @@
+import java_cup.runtime.*;
+
+terminal ALL, CLL, COMA;
+terminal Integer NUMERO;
+
+non terminal Arbol arbol;
+
+arbol ::= ALL arbol:e1 COMA NUMERO:r COMA arbol:e2 CLL {:
+				Arbol arbol = new Arbol();
+				arbol.raiz = r;
+				
+				int max;
+				if(e1.maximo >= e2.maximo) max = e1.maximo;
+				else max = e2.maximo;
+				if(r > max) max = r;
+				arbol.maximo = max;
+				
+				int prof;
+				if(e1.profundidad >= e2.profundidad) prof = e1.profundidad;
+				else prof = e2.profundidad;
+				arbol.profundidad = prof + 1;
+				
+				arbol.elementos = e1.elementos + e2.elementos + 1;
+				
+				arbol.sumaNivel[0] = r;
+				for(int i = 1; i<arbol.profundidad; i++){
+					arbol.sumaNivel[i] = 0;
+					if(e1.profundidad > i-1) arbol.sumaNivel[i] += e1.sumaNivel[i-1];
+					if(e2.profundidad > i-1) arbol.sumaNivel[i] += e2.sumaNivel[i-1];
+				}
+				arbol.arbolInverso = "{" + e2.arbolInverso + "," + r + "," + e1.arbolInverso + "}";
+				
+				arbol.grafo = r + " -> {" + e1.raiz + "," + e2.raiz + "}; ";
+				if(e1.grafo != " ") arbol.grafo = e1.grafo + arbol.grafo;
+				if(e2.grafo != " ") arbol.grafo = arbol.grafo + e2.grafo;
+				RESULT = arbol;
+			:}
+	   | NUMERO:n {: 
+					 Arbol arbol = new Arbol();
+					 arbol.raiz = n;
+					 arbol.maximo = n;
+					 arbol.profundidad = 1;
+					 arbol.elementos = 1;
+					 arbol.sumaNivel[0] = n;
+					 arbol.arbolInverso = n.toString();
+					 arbol.grafo = " ";
+					 RESULT = arbol;
+				  :}
+		;

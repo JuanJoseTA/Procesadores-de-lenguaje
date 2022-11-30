@@ -1,0 +1,32 @@
+import java_cup.runtime.*;
+
+/* Terminals (tokens returned by the scanner). */
+terminal SUM, RES, MUL, DIV;
+terminal NEG, LPAREN, RPAREN;
+terminal EOL;
+terminal Integer NUMBER;
+
+/* Non terminals */
+non terminal expr_list, expr_part;
+non terminal Integer expr;
+
+/* Precedences */
+precedence nonassoc EOL;
+precedence left SUM, RES;
+precedence left MUL, DIV;
+precedence nonassoc NEG;
+precedence nonassoc LPAREN, RPAREN;
+
+/* The grammar */
+expr_list ::= expr_part expr_list | expr_part;
+expr_part ::= expr:e EOL {: System.out.println(e); :}
+	    | EOL {: System.out.println(""); :}
+	    ;
+expr ::= expr:e1 SUM expr:e2 {: RESULT = e1+e2; :}
+       | expr:e1 RES expr:e2 {: RESULT = e1-e2; :}
+       | expr:e1 MUL expr:e2 {: RESULT = e1*e2; :}
+       | expr:e1 DIV expr:e2 {: RESULT = e1/e2; :}
+       | RES expr:e1  {: RESULT = -e1; :} %prec NEG
+       | LPAREN expr:e RPAREN {: RESULT = e; :}
+       | NUMBER:n {: RESULT = n; :}
+       ;
