@@ -1,0 +1,55 @@
+import java_cup.runtime.*;
+import java.util.HashMap;
+
+action code {: 
+	public HashMap<String,String> tabla = new HashMap<String,String>();
+	
+	public String buscar(String ident) {
+		return tabla.get(ident);
+	}
+	
+	public void insertar(String ident, String valor) {
+		tabla.put(ident, valor);
+	}
+
+:};
+
+terminal MAS, MENOS;
+terminal IGUAL, AP, CP, PYC, PUNTO;
+terminal COMA, PRINT, SUBSTR, SIZE;
+terminal String CADENA, ID;
+terminal Integer NUMERO;
+
+non terminal linea, lineas;
+non terminal Integer numero;
+non terminal String exp;
+
+precedence left MAS, MENOS;
+precedence nonassoc PUNTO, SUBSTR, SIZE;
+precedence nonassoc AP, CP;
+
+
+lineas ::= lineas linea PYC
+		| linea PYC
+		;
+		
+linea ::= PRINT AP exp:e CP {: System.out.println(e); :}
+		| ID:i IGUAL exp:e {: insertar(i,e); :}
+		;
+		
+exp ::= CADENA:c {: RESULT = c; :}
+	  | ID:i {: RESULT = buscar(i); :}
+	  | exp:e PUNTO SUBSTR AP numero:p COMA numero:l CP {: 
+															String x = e;
+															RESULT = x.substring(p,p+l); 
+														:}
+	  | exp:e1 MAS exp:e2 {: RESULT = e1 + e2; :}
+	  | AP exp:e CP {: RESULT = e; :}
+	  ;
+	 
+numero ::= NUMERO:n {: RESULT = n; :}
+		 | exp:e PUNTO SIZE AP CP {: RESULT = e.length(); :}
+		 | numero:n1 MENOS numero:n2 {: RESULT = n1-n2; :}
+		 | numero:n1 MAS numero:n2 {: RESULT = n1+n2; :}
+		 ;
+
