@@ -1,0 +1,80 @@
+import java_cup.runtime.*;
+
+
+/* Terminales */
+terminal			ALL, CLL, AP, CP, AC, CC, COMA, PYC, DP, ASIG, MAS, MENOS, POR, DIV, UMINUS,
+					IGUAL, DIST, NEG, MENOR, MAYOR, MENOREQ, MAYOREQ, AND, OR,
+					IF, ELSE, WHILE, DO, FOR, PRINT;
+					
+terminal String		IDENT, ENTERO;
+
+/* No terminales */
+
+non terminal 				lista_sent, sent, else_tag;
+non terminal String			exp, if_tag, while_tag, do_tag, for_tag;
+non terminal Tag			cond;
+
+/* Precedences */
+
+precedence right ASIG;
+precedence left OR;
+precedence left AND;
+precedence left IGUAL,DIST,MENOR,MENOREQ,MAYOR,MAYOREQ;
+precedence left MAS,MENOS;
+precedence left POR,DIV;
+precedence left UMINUS;
+precedence right NEG;
+precedence nonassoc IF;
+precedence nonassoc ELSE;
+
+/* Gramática */
+
+lista_sent 		::=	sent
+				|	lista_sent sent
+				;
+				
+sent			::=	exp PYC
+				|	if_tag:tag AP cond:c {: Compilador.etiqueta(c.getA()); :} CP sent {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :} else_tag {: Compilador.etiqueta(tag); :}
+				|	while_tag:tag {: Compilador.etiqueta(tag); :} AP cond:c {: Compilador.etiqueta(c.getA()); :} CP sent {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :}
+				|	do_tag:tag {: Compilador.etiqueta(tag); :} sent WHILE AP cond:c {: Compilador.etiqueta(c.getA()); Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :} CP PYC
+				|	for_tag:tag AP exp:e1 PYC {: Compilador.etiqueta(tag); :} cond:c PYC {: RESULT = Compilador.generarTag(); Compilador.etiqueta(RESULT.toString()); :} exp:e2 CP {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getA()); :} sent {: Compilador.goToLabel(RESULT.toString()); Compilador.etiqueta(c.getB()); :}
+				|	PRINT AP exp:e CP PYC		{: RESULT = Compilador.print(e); :}
+				|	PRINT AP exp:e CP 			{: RESULT = Compilador.print(e); :}
+				|	ALL lista_sent CLL
+;
+
+for_tag			::= FOR {:RESULT = Compilador.generarTag();:}
+				;
+if_tag			::= IF {:RESULT = Compilador.generarTag();:}
+				;
+while_tag		::= WHILE {:RESULT = Compilador.generarTag();:}
+				;
+do_tag			::= DO {:RESULT = Compilador.generarTag();:}
+				;
+else_tag		::= ELSE sent 
+				|
+				;
+				
+exp				::= exp:e1 MAS exp:e2				{: RESULT = Compilador.operacion(e1 + " + " + e2); :}
+				|	exp:e1 MENOS exp:e2				{: RESULT = Compilador.operacion(e1 + " - " + e2); :}
+				|	exp:e1 POR exp:e2				{: RESULT = Compilador.operacion(e1 + " * " + e2); :}
+				|	exp:e1 DIV exp:e2				{: RESULT = Compilador.operacion(e1 + " / " + e2); :}
+				|	MENOS exp:e1					{: RESULT = Compilador.operacion("-" + e1); :} %prec UMINUS
+				|	AP exp:e CP						{: RESULT = e; :}
+				|	IDENT:k ASIG exp:e				{: RESULT = Compilador.asig(k,e); :}
+				|	IDENT:i							{: RESULT = i; :}
+				|	ENTERO:e						{: RESULT = e; :}
+				;
+
+cond			::= exp:e1 IGUAL exp:e2				{: RESULT = Compilador.condicion("IGUAL", e1, e2); :}
+				|	exp:e1 DIST exp:e2				{: RESULT = Compilador.condicion("DIST", e1, e2); :}
+				|	exp:e1 MENOR exp:e2				{: RESULT = Compilador.condicion("MENOR", e1, e2); :}
+				|	exp:e1 MAYOR exp:e2				{: RESULT = Compilador.condicion("MAYOR", e1, e2); :}
+				|	exp:e1 MAYOREQ exp:e2			{: RESULT = Compilador.condicion("MAYOREQ", e1, e2); :}
+				|	exp:e1 MENOREQ exp:e2			{: RESULT = Compilador.condicion("MENOREQ", e1, e2); :}
+				|	NEG cond:c						{: RESULT = Compilador.operador("NOT", c, null); :}
+				|	AP cond:c CP					{: RESULT = c; :}
+				|	cond:c1 AND {: Compilador.etiqueta(c1.getA()); :} cond:c2 {: RESULT = Compilador.operador("AND", c1, c2); :}
+				|	cond:c1 OR {: Compilador.etiqueta(c1.getB()); :} cond:c2 {: RESULT = Compilador.operador("OR", c1, c2); :}
+				;
+				

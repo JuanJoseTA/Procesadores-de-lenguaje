@@ -1,0 +1,136 @@
+import java_cup.runtime.*;
+import java.util.*;
+
+action code {:
+	int level = 0;
+	Tag[] cond = new Tag[10];
+	int levelCond = -1;
+	String tipo;
+	int floatConv = 0;
+	ArrayList<String> arr;
+	String key;
+:}
+
+/* Terminales */
+terminal			ALL, CLL, AP, CP, AC, CC, COMA, PYC, DP, ASIG, MAS, MENOS, POR, DIV, MOD, UMINUS,
+					IGUAL, DIST, NEG, MENOR, MAYOR, MENOREQ, MAYOREQ, AND, OR, CHAR, CIRCUN, LENGTH,
+					IF, ELSE, WHILE, DO, FOR, PRINT, INT, FLOAT, INC, DEC ,DOWNTO, TO, STEP, IN;
+					
+terminal String		CHARESP, CHARN, IDENT, ENTERO, REAL;
+
+/* No terminales */
+
+non terminal 				lista_sent, sent, else_tag, idents, array;
+non terminal String			exp, if_tag, while_tag, do_tag, for_tag, stepPart, tipo, numero, char;
+non terminal Tag			cond;
+
+/* Precedences */
+
+precedence right ASIG;
+precedence left OR;
+precedence left AND;
+precedence left IGUAL,DIST,MENOR,MENOREQ,MAYOR,MAYOREQ;
+precedence left MAS,MENOS;
+precedence left POR,DIV,MOD,STEP;
+precedence left INC,DEC;
+precedence left UMINUS;
+precedence right NEG, CIRCUN;
+precedence nonassoc AP, CP;
+precedence nonassoc ALL, CLL;
+precedence nonassoc IF;
+precedence nonassoc ELSE;
+
+/* Gramática */
+
+lista_sent 		::=	sent
+				|	lista_sent sent
+				;
+				
+sent			::=	exp PYC
+				|   tipo:t IDENT:i  {: Compilador.declarar(i, level, t); tipo = t; :} idents PYC
+				|   tipo:t IDENT:k ASIG exp:e  {: Compilador.declarar(k, level, t); tipo = t; Compilador.asig(k,e,level); :} idents PYC
+				|   tipo:t IDENT:i AC exp:n CC PYC  {: Compilador.declararArray(i, t, n); :}
+				|   IDENT:i AC exp:n CC ASIG exp:e PYC {: Compilador.asigArray(i, n, e); :}
+				|   tipo:t IDENT:i AC exp:n CC {: Compilador.declararArray(i, t, n); :} ASIG {: arr = new ArrayList<>(); :} ALL exp:e {: arr.add(e); :} array CLL PYC {: Compilador.iniciaArray(i, arr); :}
+				|	if_tag:tag AP cond:c {: Compilador.etiqueta(c.getA()); :} CP sent {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :} else_tag {: Compilador.etiqueta(tag); :}
+				|	while_tag:tag {: Compilador.etiqueta(tag); :} AP cond:c {: Compilador.etiqueta(c.getA()); :} CP sent {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :}
+				|	do_tag:tag {: Compilador.etiqueta(tag); :} sent WHILE AP cond:c {: Compilador.etiqueta(c.getA()); Compilador.goToLabel(tag); Compilador.etiqueta(c.getB()); :} CP PYC
+				|	for_tag:tag AP exp:e1 PYC {: Compilador.etiqueta(tag); :} cond:c PYC {: RESULT = Compilador.generarTag(); Compilador.etiqueta(RESULT.toString()); :} exp:e2 CP {: Compilador.goToLabel(tag); Compilador.etiqueta(c.getA()); :} sent {: Compilador.goToLabel(RESULT.toString()); Compilador.etiqueta(c.getB()); :}
+				|	for_tag:tag exp:e1 TO exp:e2 {:levelCond++; Compilador.etiqueta(tag); cond[levelCond] = Compilador.condicion("MAYOREQ", e2, e1); RESULT = Compilador.generarTag(); Compilador.etiqueta(RESULT.toString()); :} stepPart:e3 {: if(e3 == null) Compilador.pre("+", e1); else Compilador.step("+", e1, e3); Compilador.goToLabel(tag); Compilador.etiqueta(cond[levelCond].getA()); :}  DO sent {: Compilador.goToLabel(RESULT.toString()); Compilador.etiqueta(cond[levelCond].getB()); levelCond--;:}
+				|	for_tag:tag exp:e1 DOWNTO exp:e2 {:levelCond++; Compilador.etiqueta(tag); cond[levelCond] = Compilador.condicion("MENOREQ", e2, e1); RESULT = Compilador.generarTag(); Compilador.etiqueta(RESULT.toString()); :} stepPart:e3 {: if(e3 == null) Compilador.pre("-", e1); else Compilador.step("-", e1, e3); Compilador.goToLabel(tag); Compilador.etiqueta(cond[levelCond].getA()); :}  DO sent {: Compilador.goToLabel(RESULT.toString()); Compilador.etiqueta(cond[levelCond].getB()); levelCond--;:}
+				|	PRINT AP exp:e CP PYC			{: RESULT = Compilador.print(e); :}
+				|	ALL {: level++; :} lista_sent CLL{: Compilador.eliminar(level); level--; :}
+				|	ALL CLL
+				;
+
+idents          ::= COMA IDENT:i {: Compilador.declarar(i, level, tipo); :} idents
+				|   COMA IDENT:k ASIG exp:e	{: Compilador.declarar(k, level, tipo); Compilador.asig(k,e, level); :} idents
+				|
+				;
+
+for_tag			::= FOR {:RESULT = Compilador.generarTag();:}
+				;
+if_tag			::= IF {:RESULT = Compilador.generarTag();:}
+				;
+while_tag		::= WHILE {:RESULT = Compilador.generarTag();:}
+				;
+do_tag			::= DO {:RESULT = Compilador.generarTag();:}
+				;
+else_tag		::= ELSE sent 
+				|
+				;
+stepPart		::= STEP exp:e {: RESULT = e; :}
+				| 			   {: RESULT = null; :}
+				;
+				
+exp				::= exp:e1 MAS exp:e2				{: RESULT = Compilador.operacion("+", e1, e2); :}
+				|	exp:e1 MENOS exp:e2				{: RESULT = Compilador.operacion("-", e1, e2); :}
+				|	exp:e1 POR exp:e2				{: RESULT = Compilador.operacion("*", e1, e2); :}
+				|	exp:e1 DIV exp:e2				{: RESULT = Compilador.operacion("/", e1, e2); :}
+				|	exp:e1 MOD exp:e2				{: RESULT = Compilador.modulo(e1, e2); :}
+				|	MENOS exp:e1					{: RESULT = Compilador.operacion("-", e1, "non"); :} %prec UMINUS
+				|   INC exp:i						{: RESULT = Compilador.pre("+", Compilador.comprobar(i, level)); :}
+				| 	DEC exp:i						{: RESULT = Compilador.pre("-", Compilador.comprobar(i, level)); :}
+				| 	exp:i INC						{: RESULT = Compilador.post("+", Compilador.comprobar(i, level)); :}
+				| 	exp:i DEC						{: RESULT = Compilador.post("-", Compilador.comprobar(i, level)); :}
+				|	AP exp:e CP						{: RESULT = e; :}
+				|   AP tipo:t {: if(t.equals("float")) floatConv=1; :} CP exp:e {: RESULT = Compilador.conversion(t, e); floatConv = 0; :}
+				|	IDENT:k ASIG exp:e				{: RESULT = Compilador.asig(k,e,level); :}
+				| 	IDENT:i AC exp:e CC				{: RESULT = Compilador.posArray(i,e,level); :}
+				|	IDENT:i							{: RESULT = Compilador.comprobar(i, level); :}
+				|   IDENT:i ASIG ALL {: arr = new ArrayList<>(); :} exp:e {: arr.add(e); :} array CLL {: Compilador.iniciaArray(i, arr); RESULT = i; :}
+				|	numero:n 						{: RESULT = n; :}
+				|   char:c							{: RESULT = c; :}
+				|   NEG exp:e						{: RESULT = Compilador.cambioChar("!", e, level); :}
+				|   CIRCUN exp:e					{: RESULT = Compilador.cambioChar("~", e, level); :}
+				|   exp:e LENGTH					{: RESULT = Compilador.lengthArray(e); :}
+				;
+				
+array			::= COMA exp:e {: arr.add(e); :} array
+				|	
+				;
+				
+numero			::= ENTERO:e						{: if(floatConv == 0) RESULT = e; else RESULT = Compilador.conversion("float", e);  :}
+				|	REAL:e							{: RESULT = e; :}
+				;
+				
+char 			::= CHARN:e							{: RESULT = e; :}
+				| 	CHARESP:e						{: RESULT = e; :}
+				;
+				
+cond			::= exp:e1 IGUAL exp:e2				{: RESULT = Compilador.condicion("IGUAL", e1, e2); :}
+				|	exp:e1 DIST exp:e2				{: RESULT = Compilador.condicion("DIST", e1, e2); :}
+				|	exp:e1 MENOR exp:e2				{: RESULT = Compilador.condicion("MENOR", e1, e2); :}
+				|	exp:e1 MAYOR exp:e2				{: RESULT = Compilador.condicion("MAYOR", e1, e2); :}
+				|	exp:e1 MAYOREQ exp:e2			{: RESULT = Compilador.condicion("MAYOREQ", e1, e2); :}
+				|	exp:e1 MENOREQ exp:e2			{: RESULT = Compilador.condicion("MENOREQ", e1, e2); :}
+				|	NEG cond:c						{: RESULT = Compilador.operador("NOT", c, null); :}
+				|	AP cond:c CP					{: RESULT = c; :}
+				|	cond:c1 AND {: Compilador.etiqueta(c1.getA()); :} cond:c2 {: RESULT = Compilador.operador("AND", c1, c2); :}
+				|	cond:c1 OR {: Compilador.etiqueta(c1.getB()); :} cond:c2 {: RESULT = Compilador.operador("OR", c1, c2); :}
+				;
+				
+tipo 			::= INT {: RESULT = "int"; :}
+				|   FLOAT {: RESULT = "float"; :}
+				|   CHAR {: RESULT = "char"; :}
+				;
